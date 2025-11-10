@@ -622,12 +622,12 @@ $halo: rgba($accent, 0.06);
   color: $text;
   min-height: 100vh;
   padding-bottom: 60px;
-
+  padding-top: 20px;
   .section {
     padding: 80px 20px;
     max-width: 1200px;
     margin: 0 auto;
-
+ 
     .sort-controls {
       margin: 16px 0;
 
@@ -1235,7 +1235,7 @@ $halo: rgba($accent, 0.06);
     width: 220px;
     padding: 16px;
     position: fixed;
-    top: 84px;
+    top: 64px;
     right: 12px;
     z-index: 1200;
     color: #eaf7ff; /* 文字主色（冷白） */
@@ -1532,8 +1532,6 @@ $halo: rgba($accent, 0.06);
     width: calc(100% - 24px);
     padding: 18px;
   }
-  .ranking-panel {
-    display: none;
-  }
+ 
 }
 </style>
