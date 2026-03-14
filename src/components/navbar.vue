@@ -30,7 +30,7 @@
       </RouterLink>
 
       <a
-        href="http://36.150.237.25/#/redirector"
+        href="https://slty.site/#/redirector"
         target="_blank"
         rel="noopener"
         class="nav-item"
@@ -67,7 +67,7 @@ const siteId = "kati";
 const onlineCount = ref<number | null>(null);
 
 // 连接时带上 query.siteId
-const socket: any = io("http://36.150.237.25:3000", {
+const socket: any = io(import.meta.env.VITE_API_BASE_URL, {
   query: { siteId },
 });
 
