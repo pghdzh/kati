@@ -1,10 +1,34 @@
+<!--
+  卡提希娅风格图集 - 双生瞬影
+  配色：深蓝底 / 冰蓝 / 鎏金 / 圣洁白
+  装饰：鸢尾暗纹、圣典网格、圣光扫掠、浮游粒子
+-->
 <template>
-  <div class="gallery-container">
-    <button class="upload-btn" @click="openUploadModal">上传图片</button>
+  <div class="cartethyia-gallery-container">
+    <!-- ========== CSS 2D 动态背景层 ========== -->
+    <div class="css-bg">
+      <div class="bg-gradients"></div>
+      <div class="bg-grid"></div>
+      <div class="bg-fleur"></div>
+      <div class="bg-sweep"></div>
+      <div class="bg-particles">
+        <span
+          v-for="i in 24"
+          :key="'p' + i"
+          class="particle"
+          :style="getBgParticleStyle(i)"
+        ></span>
+      </div>
+    </div>
+
+    <button class="upload-btn" @click="openUploadModal">
+      <span class="btn-icon">⚜️</span> 上传图片
+    </button>
 
     <section class="gallery section">
       <div class="sort-controls">
         <button @click="toggleSort" class="sort-btn">
+          <span class="sort-icon">❖</span>
           按 {{ sortBy === "like_count" ? "点赞量" : "最新上传" }} 排序
         </button>
       </div>
@@ -24,7 +48,7 @@
               @load="onImageLoad($event)"
             />
             <div class="overlay">
-              <span>查看大图</span>
+              <span>⚜️ 查看大图</span>
             </div>
             <button class="like-btn" @click.stop="handleLike(img)">
               <i class="heart" :class="{ liked: img.liked }"></i>
@@ -33,16 +57,20 @@
           </div>
         </div>
       </div>
-      <!-- sentinel：用于触发无限滚动 -->
       <div ref="sentinel" class="sentinel"></div>
-      <!-- 可选：加载中/结束提示 -->
-      <div class="loading" v-if="loading">加载中...</div>
-      <div class="finished" v-if="finished">已全部加载</div>
+      <div class="loading" v-if="loading">
+        <span class="ice-symbol">❄️</span> 圣典翻页中...
+      </div>
+      <div class="finished" v-if="finished">
+        —— 已达圣典尽头 · 暂无更多图卷 ——
+      </div>
     </section>
+
+    <!-- 排行榜面板 -->
     <aside class="ranking-panel">
       <div class="panel-header" @click="expanded = !expanded">
-        <h3 class="ranking-title">排行榜</h3>
-        <span>共{{ imgTotal }}张</span>
+        <h3 class="ranking-title">⚜️ 排行</h3>
+        <span class="panel-total">共{{ imgTotal }}张</span>
         <span class="toggle-icon">{{ expanded ? "▾" : "▸" }}</span>
       </div>
       <transition name="fade">
@@ -60,7 +88,8 @@
         </ul>
       </transition>
     </aside>
-    <!-- Lightbox Modal -->
+
+    <!-- Lightbox -->
     <div v-if="lightboxOpen" class="lightbox" @click.self="closeLightbox">
       <span class="close" @click="closeLightbox">✕</span>
       <span class="prev" @click.stop="prevImage">‹</span>
@@ -75,12 +104,11 @@
       @click.self="closeUploadModal"
     >
       <div class="upload-modal">
-        <h3>批量上传图片</h3>
+        <h3>⚜️ 圣典收录 · 提交图卷</h3>
         <div class="tip-container">
           <ul class="tips-list">
             <li>
-              审核规则： 1.不要色情倾向（不要露三点，我怕被封）
-              2.要我能认出是卡提希娅。
+              审核规则： 1.不要色情倾向（不要露三点） 2.要我能认出是卡提希娅。
             </li>
             <li>
               由于没有用户系统，我这边不好做审核反馈，但只要显示上传成功，我这边肯定能收到。
@@ -94,15 +122,15 @@
           </ul>
         </div>
         <p class="stats">
-          今日已上传：<strong>{{ uploadedToday }}</strong> 张，
-          剩余可上传：<strong>{{ remaining }}</strong> 张
+          今日已提交：<strong>{{ uploadedToday }}</strong> 张，
+          剩余可提交：<strong>{{ remaining }}</strong> 张
         </p>
         <label>
-          昵称：
-          <input v-model="nickname" type="text" placeholder="请输入昵称" />
+          署名：
+          <input v-model="nickname" type="text" placeholder="留下你的名讳…" />
         </label>
         <label>
-          选择图片（最多 {{ remaining }} 张）：
+          选择图卷（最多 {{ remaining }} 张）：
           <input
             ref="fileInput"
             type="file"
@@ -116,13 +144,14 @@
         </p>
         <div class="modal-actions">
           <button :disabled="!canSubmit || isUploading" @click="submitUpload">
-            {{ isUploading ? "上传中..." : "立即上传" }}
+            {{ isUploading ? "收录中…" : "⚜️ 提交收录" }}
           </button>
           <button class="cancel" @click="closeUploadModal">取消</button>
         </div>
       </div>
     </div>
 
+    <!-- 浮动小人 -->
     <div class="floating-chibis">
       <img
         v-for="(pet, i) in chibiList"
@@ -137,12 +166,13 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, computed, nextTick, onBeforeUnmount } from "vue";
-import { uploadImages } from "@/api/modules/images"; // 前面封装的上传接口
-import { getRankingList } from "@/api/modules/ranking"; // 根据你的实际路径调整
-import { gsap } from "gsap"; // ← 本地引入
+import { uploadImages } from "@/api/modules/images";
+import { getRankingList } from "@/api/modules/ranking";
+import { gsap } from "gsap";
 import { getImagesLikesList, likeImage } from "@/api/modules/imagesLikes";
 import { debounce } from "lodash";
 
+// ========== 排序 ==========
 const sortBy = ref<"uploaded_at" | "like_count">("like_count");
 const order = ref<"asc" | "desc">("desc");
 function toggleSort() {
@@ -159,33 +189,14 @@ function toggleSort() {
   window.scrollTo(0, 0);
   loadNextPage();
 }
-// 获取已点赞 ID 数组
+
+// ========== 点赞 ==========
 function getLikedIds(): number[] {
   const data = localStorage.getItem("likedImageIds");
   return data ? JSON.parse(data) : [];
 }
-
-// 保存已点赞 ID 数组
 function setLikedIds(ids: number[]) {
   localStorage.setItem("likedImageIds", JSON.stringify(ids));
-}
-
-async function handleLike(img: ImageItem) {
-  if (img.liked) return; // 已点过就不重复调用
-
-  try {
-    await likeImage(img.id); // 调用后端接口
-    img.likeCount += 1; // 本地更新点赞数
-    img.liked = true; // 标记已点赞
-
-    // 更新 localStorage
-    const likedIds = getLikedIds();
-    likedIds.push(img.id);
-    setLikedIds(likedIds);
-  } catch (error) {
-    console.error("点赞失败", error);
-    alert("点赞失败，请稍后重试");
-  }
 }
 
 interface ImageItem {
@@ -196,20 +207,35 @@ interface ImageItem {
   liked: Boolean;
 }
 
+async function handleLike(img: ImageItem) {
+  if (img.liked) return;
+  try {
+    await likeImage(img.id);
+    img.likeCount += 1;
+    img.liked = true;
+    const likedIds = getLikedIds();
+    likedIds.push(img.id);
+    setLikedIds(likedIds);
+  } catch (error) {
+    console.error("点赞失败", error);
+    alert("点赞失败，请稍后重试");
+  }
+}
+
+// ========== 排行榜 ==========
 interface RankingItem {
-  id?: number; // 如果接口返回有 id，可加上
   nickname: string;
   count: number;
 }
 const rankingList = ref<RankingItem[]>([]);
 const expanded = ref(true);
 
-// 默认分页参数（如不分页可省略）
-const page = 1;
-const pageSize = 99;
-
 const fetchRanking = async () => {
-  const res = await getRankingList({ page, pageSize, character_key: "kati" });
+  const res = await getRankingList({
+    page: 1,
+    pageSize: 99,
+    character_key: "kati",
+  });
   if (res.success) {
     rankingList.value = res.data;
   } else {
@@ -217,17 +243,15 @@ const fetchRanking = async () => {
   }
 };
 
-// 响应式存放最终图片列表
+// ========== 图片列表 ==========
 const images = ref<ImageItem[]>([]);
-
 const pageImage = ref(1);
 const limit = ref(10);
 const loading = ref(false);
 const finished = ref(false);
-
+const imgTotal = ref(0);
 const sentinel = ref<HTMLElement | null>(null);
 
-// 1. 在外层创建一个单例 observerCard
 const observerCard = new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {
@@ -239,7 +263,7 @@ const observerCard = new IntersectionObserver(
   },
   { threshold: 0.1 }
 );
-// 2. 每次有新卡片时，都调用这个方法去挂载观察
+
 async function observeNewCards(startIndex = 0) {
   await nextTick();
   const cards = document.querySelectorAll<HTMLElement>(".card");
@@ -247,14 +271,14 @@ async function observeNewCards(startIndex = 0) {
     observerCard.observe(cards[i]);
   }
 }
+
 const fixImageUrl = (url: string): string => {
-  if (url.includes('127.0.0.1')) {
-    // 将 127.0.0.1 替换为当前页面的完整源（协议+域名）
-    return url.replace('http://127.0.0.1', window.location.origin);
+  if (url.includes("127.0.0.1")) {
+    return url.replace("http://127.0.0.1", window.location.origin);
   }
   return url;
 };
-const imgTotal = ref(0);
+
 async function loadNextPage() {
   if (loading.value || finished.value) return;
   loading.value = true;
@@ -274,20 +298,18 @@ async function loadNextPage() {
       src: fixImageUrl(item.url),
       alt: "",
       likeCount: item.like_count,
-      id: item.id, // 如果需要的话，方便点赞用
+      id: item.id,
       liked: likedIds.includes(item.id),
     }));
     if (list.length === 0) {
       finished.value = true;
       return;
     }
-    // 记录加载前的长度，方便后面找出“新增”节点
     const oldLength = images.value.length;
     const existingIds = new Set(images.value.map((i) => i.id));
     const filtered = list.filter((item) => !existingIds.has(item.id));
     images.value.push(...filtered);
     pageImage.value++;
-
     observeNewCards(oldLength);
   } catch (err) {
     console.error(err);
@@ -296,7 +318,6 @@ async function loadNextPage() {
   }
 }
 
-// 3. 给 loadNextPage 包装一个防抖版
 const debouncedLoad = debounce(
   () => {
     loadNextPage();
@@ -305,9 +326,9 @@ const debouncedLoad = debounce(
   { leading: true, trailing: false }
 );
 
+// ========== 灯箱 ==========
 const lightboxOpen = ref(false);
 const currentIndex = ref(0);
-
 function openLightbox(index: number) {
   currentIndex.value = index;
   lightboxOpen.value = true;
@@ -322,22 +343,19 @@ function prevImage() {
 function nextImage() {
   currentIndex.value = (currentIndex.value + 1) % images.value.length;
 }
-
-// 渐显＆Blur‑Up 效果
 function onImageLoad(e: Event) {
   const img = e.target as HTMLImageElement;
   const card = img.closest(".card");
   card?.classList.add("loaded");
 }
 
-// 上传弹窗逻辑
-
+// ========== 上传 ==========
 const uploadModalOpen = ref(false);
 const nickname = ref("");
 const fileInput = ref<HTMLInputElement>();
 const selectedFiles = ref<File[]>([]);
+const isUploading = ref(false);
 
-// 从 localStorage 读取“今天”已上传数量
 function getTodayKey() {
   return `uploaded_${new Date().toISOString().slice(0, 10)}`;
 }
@@ -345,8 +363,6 @@ const uploadedToday = ref<number>(
   Number(localStorage.getItem(getTodayKey()) || 0)
 );
 const remaining = computed(() => Math.max(27 - uploadedToday.value, 0));
-
-// 控制提交按钮
 const canSubmit = computed(() => {
   return (
     nickname.value.trim().length > 0 &&
@@ -355,26 +371,17 @@ const canSubmit = computed(() => {
   );
 });
 
-// 放在 script 顶部，或者 utils 里
 function clearOldUploadRecords() {
   const today = new Date();
   const storage = window.localStorage;
   for (const key of Object.keys(storage)) {
     if (!key.startsWith("uploaded_")) continue;
-
-    // key 格式 uploaded_YYYY-MM-DD
     const dateStr = key.slice("uploaded_".length);
     const recordDate = new Date(dateStr);
     if (isNaN(recordDate.getTime())) continue;
-
-    // 计算相差天数
-    const diffMs = today.getTime() - recordDate.getTime();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-    // 如果超过 2 天，就删掉
-    if (diffDays > 2) {
-      storage.removeItem(key);
-    }
+    const diffDays =
+      (today.getTime() - recordDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays > 2) storage.removeItem(key);
   }
 }
 
@@ -383,7 +390,6 @@ function openUploadModal() {
   nickname.value = "";
   selectedFiles.value = [];
   if (fileInput.value) fileInput.value.value = "";
-  // 每次打开重新刷新已上传数
   uploadedToday.value = Number(localStorage.getItem(getTodayKey()) || 0);
   uploadModalOpen.value = true;
 }
@@ -391,12 +397,9 @@ function closeUploadModal() {
   uploadModalOpen.value = false;
 }
 
-// 本地截断到剩余数量
 function handleFileSelect(e: Event) {
   const files = Array.from((e.target as HTMLInputElement).files || []);
-
   if (!files) return;
-
   const validFiles: File[] = [];
   for (const file of files) {
     if (file.size > 20 * 1024 * 1024) {
@@ -405,19 +408,17 @@ function handleFileSelect(e: Event) {
     }
     validFiles.push(file);
   }
-
   if (validFiles.length === 0) return;
-
   if (validFiles.length > remaining.value) {
     alert(
-      `今天最多还能上传 ${remaining.value} 张，已为你截取前 ${remaining.value} 张`
+      `今天最多还能提交 ${remaining.value} 张，已为你截取前 ${remaining.value} 张`
     );
     selectedFiles.value = files.slice(0, remaining.value);
   } else {
     selectedFiles.value = files;
   }
 }
-const isUploading = ref(false);
+
 async function submitUpload() {
   if (!canSubmit.value) return;
   isUploading.value = true;
@@ -428,40 +429,32 @@ async function submitUpload() {
       "kati"
     );
     const uploadedCount = res.data.length;
-    // 更新 localStorage
     uploadedToday.value += uploadedCount;
     localStorage.setItem(getTodayKey(), String(uploadedToday.value));
-
-    alert(`成功上传 ${uploadedCount} 张图片`);
+    alert(`成功收录 ${uploadedCount} 张图卷`);
     closeUploadModal();
-    // …可选：刷新画廊列表或把新图片追加到 images …
   } catch (err: any) {
     console.error(err);
-    alert(err.message || "上传失败");
+    alert(err.message || "收录失败");
   } finally {
     isUploading.value = false;
   }
 }
 
+// ========== 浮动小人 ==========
 interface Chibi {
   src: string;
   top: number;
   left: number;
 }
-
 const chibiList = ref<Chibi[]>([]);
 let sentinelObserver: IntersectionObserver;
-// Scroll-triggered lazy animation
-onMounted(async () => {
-  // 1. 拉排行榜
-  await fetchRanking();
 
-  // 2. 拉第一页图片并挂载动画 observer
-  await loadNextPage(); // 内部会调用 observeNewCards(oldLen)
-  // 对首次卡片做一次完整 observe
+onMounted(async () => {
+  await fetchRanking();
+  await loadNextPage();
   observeNewCards(0);
 
-  // 3. 初始化 sentinelObserver，再 observe
   sentinelObserver = new IntersectionObserver(
     (entries) => {
       if (entries[0].isIntersecting) debouncedLoad();
@@ -471,51 +464,34 @@ onMounted(async () => {
   if (sentinel.value) {
     sentinelObserver.observe(sentinel.value);
   }
-  // 1. 基础配置信息
+
+  // 小人动画
   const total = 9;
-  let pickCount = 3; // 每次抽取 3 张
+  let pickCount = window.innerWidth <= 768 ? 1 : 3;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const isMobile = window.innerWidth <= 768;
-  // 如果已知单张小人图片的宽高，可避免超出边界；
-  // 假设小人图片宽 100px、高 100px，按需替换：
   const imgWidth = 100;
   const imgHeight = 100;
-
-  // 2. Fisher–Yates 洗牌函数
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
+  function shuffle(arr: number[]) {
+    for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    return array;
+    return arr;
   }
+  const picks = shuffle(Array.from({ length: total }, (_, k) => k + 1)).slice(
+    0,
+    pickCount
+  );
+  chibiList.value = picks.map((i) => ({
+    src: `/QImages/1 (${i}).png`,
+    left: Math.random() * (vw - imgWidth),
+    top: Math.random() * (vh - imgHeight),
+  }));
 
-  // 3. 随机选出 3 个编号
-  if (isMobile) {
-    pickCount = 1;
-  }
-  const nums = shuffle(Array.from({ length: total }, (_, k) => k + 1));
-  const picks = nums.slice(0, pickCount);
-
-  // 4. 生成随机位置并填充 chibiList
-  chibiList.value = []; // 先清空
-  picks.forEach((i) => {
-    chibiList.value.push({
-      src: `/QImages/1 (${i}).png`,
-      left: Math.random() * (vw - imgWidth), // 保证不超出左右边界
-      top: Math.random() * (vh - imgHeight), // 保证不超出上下边界
-    });
-  });
-
-  // 2. 等 img 渲染到 DOM
   await nextTick();
-
-  // 3. 给每个小人绑定 GSAP 动画
   const imgs = document.querySelectorAll<HTMLImageElement>(".chibi-img");
   imgs.forEach((img, index) => {
-    const padding = 200; // 边缘预留空间
-    // ✅ 初始出场动画（闪现）
     gsap.fromTo(
       img,
       { opacity: 0, scale: 0.5 },
@@ -527,40 +503,29 @@ onMounted(async () => {
         delay: 0.2 * index,
       }
     );
-
-    // ✅ 鼠标靠近闪避
     img.addEventListener("mouseenter", () => {
       gsap.killTweensOf(img);
-
       gsap.to(img, {
         x: "+=" + ((Math.random() - 0.5) * 400).toFixed(0),
         y: "+=" + ((Math.random() - 0.5) * 400).toFixed(0),
         duration: 1.2,
         ease: "back.out(2)",
-        onComplete: () => {
-          // 闪避完成后，再重新启用动画
-          animate(img);
-        },
+        onComplete: () => animate(img),
       });
     });
-
     const animate = (img: HTMLImageElement) => {
       let { x, y } = img.getBoundingClientRect();
       let deltaX = (Math.random() - 0.5) * 200;
       let deltaY = (Math.random() - 0.5) * 200;
-
-      // 预测一下偏移后的位置
+      const padding = 200;
       let nextX = x + deltaX;
       let nextY = y + deltaY;
-
-      // 校正：防漂出左、右、上、下边界
       if (nextX < padding) deltaX = padding - x;
       if (nextX + img.width > window.innerWidth - padding)
         deltaX = window.innerWidth - padding - (x + img.width);
       if (nextY < padding) deltaY = padding - y;
       if (nextY + img.height > window.innerHeight - padding)
         deltaY = window.innerHeight - padding - (y + img.height);
-
       gsap.to(img, {
         x: `+=${deltaX.toFixed(0)}`,
         y: `+=${deltaY.toFixed(0)}`,
@@ -577,24 +542,660 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   observerCard.disconnect();
   sentinelObserver.disconnect();
-  // 以及你在 onMounted 里新建的其它 Observer
 });
+
+// 背景粒子样式
+const getBgParticleStyle = (i: number) => {
+  const colors = ["#a0d4ff", "#d4b87a", "#f0f5fc", "#b6e2ff"];
+  const x = Math.random() * 100;
+  const y = Math.random() * 100;
+  const size = 2 + Math.random() * 5;
+  const delay = Math.random() * 8;
+  const dur = 6 + Math.random() * 8;
+  return {
+    left: `${x}%`,
+    top: `${y}%`,
+    width: `${size}px`,
+    height: `${size}px`,
+    backgroundColor: colors[i % colors.length],
+    animationDelay: `${delay}s`,
+    animationDuration: `${dur}s`,
+  };
+};
 </script>
 
 <style lang="scss" scoped>
-$bg: #050714; // 深海夜色（卡提希娅风）
-$accent: #7fd8ff; // 冷海蓝高光（主要点光）
-$text: #f4f8fb; // 主文字（微冷象牙）
-@use "sass:color";
+/* ======== 卡提希娅 荧蓝深海 × 鎏金圣典 ======== */
+$abyss: #050a18;
+$deep: #070f24;
+$ice: #a0d4ff;
+$ice-glow: #b6e2ff;
+$gold: #d4b87a;
+$gold-light: #e8cd7a;
+$holy: #f0f5fc;
+$text: #e9e8e7;
+$text-dim: rgba(233, 232, 231, 0.7);
+$card-bg: rgba(6, 10, 20, 0.5);
+$card-border: rgba(160, 212, 255, 0.08);
+$shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
 
-// 辅助色（保留少量毒色点缀与暗紫）
-$purple: #ffd78a;
-$venom: #8ca6bd;
-$muted: rgba(234, 233, 238, 0.78);
-$card-border: rgba($accent, 0.04);
-$soft-shadow: rgba(0, 0, 0, 0.64);
-$halo: rgba($accent, 0.06);
+.cartethyia-gallery-container {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(180deg, $abyss 0%, $deep 100%);
+  color: $text;
+  font-family: "Noto Serif SC", "Cinzel", "STKaiti", system-ui, serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  padding-bottom: 60px;
+  padding-top: 20px;
+}
 
+/* ========== CSS 动态背景 ========== */
+.css-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.bg-gradients {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+      ellipse at 20% 30%,
+      rgba(160, 212, 255, 0.04),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 60%,
+      rgba(212, 184, 122, 0.03),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 50% 80%,
+      rgba(180, 160, 210, 0.02),
+      transparent 50%
+    );
+  mix-blend-mode: screen;
+}
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+      0deg,
+      transparent 0 1px,
+      rgba(160, 212, 255, 0.015) 1px 2px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 1px,
+      rgba(160, 212, 255, 0.015) 1px 2px
+    );
+  mask-image: radial-gradient(ellipse at 50% 40%, black 30%, transparent 70%);
+  opacity: 0.5;
+  animation: gridShift 18s linear infinite;
+}
+.bg-fleur {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100 30 L110 60 L140 50 L120 76 L150 90 L120 100 L150 110 L120 124 L140 150 L110 140 L100 170 L90 140 L60 150 L80 124 L50 110 L80 100 L50 90 L80 76 L60 50 L90 60 Z' fill='none' stroke='%23d4b87a' stroke-width='1' opacity='0.06'/%3E%3C/svg%3E");
+  background-size: 180px;
+  opacity: 0.3;
+  animation: slowSpin 60s linear infinite;
+  mix-blend-mode: overlay;
+}
+.bg-sweep {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, $ice, $gold, transparent);
+  filter: blur(2px);
+  animation: sweep 12s linear infinite;
+  opacity: 0.25;
+}
+.bg-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    box-shadow: 0 0 12px currentColor;
+    animation: floatUp 8s infinite ease-in-out;
+    mix-blend-mode: screen;
+    opacity: 0;
+  }
+}
+
+/* ========== 上传按钮 ========== */
+.upload-btn {
+  position: fixed;
+  bottom: 64px;
+  right: 24px;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-family: "Cinzel", "Noto Serif SC", serif;
+  color: $abyss;
+  background: linear-gradient(135deg, $ice, $gold);
+  border: none;
+  border-radius: 28px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(160, 212, 255, 0.15);
+  transition: transform 0.25s, box-shadow 0.25s;
+  .btn-icon {
+    font-size: 1.1rem;
+  }
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6),
+      0 0 30px rgba(160, 212, 255, 0.25);
+  }
+}
+
+/* ========== 图库区域 ========== */
+.section {
+  position: relative;
+  z-index: 2;
+  padding: 80px 20px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.sort-controls {
+  margin: 16px 0 24px;
+  .sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    font-size: 0.95rem;
+    font-family: "Cinzel", "Noto Serif SC", serif;
+    cursor: pointer;
+    border-radius: 28px;
+    background: linear-gradient(
+      135deg,
+      rgba(6, 10, 20, 0.7),
+      rgba(8, 14, 28, 0.8)
+    );
+    color: $text;
+    border: 1px solid $card-border;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(160, 212, 255, 0.05);
+    transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+    .sort-icon {
+      color: $gold;
+      font-size: 1rem;
+    }
+    &:hover {
+      transform: translateY(-3px);
+      border-color: rgba(212, 184, 122, 0.3);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6),
+        0 0 20px rgba(160, 212, 255, 0.1);
+    }
+  }
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  opacity: 0;
+  transform: translateY(20px);
+  &.visible {
+    animation: fadeInUp 0.6s ease forwards;
+  }
+  &.loaded .card-inner img {
+    filter: none;
+    opacity: 1;
+  }
+}
+
+.card-inner {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  border: 1px solid $card-border;
+  transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.4s;
+  background: $card-bg;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: blur(20px) grayscale(30%);
+    opacity: 0.7;
+    transition: filter 0.6s ease, opacity 0.6s ease;
+  }
+
+  .overlay {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    padding: 14px 0;
+    background: linear-gradient(transparent, rgba(5, 10, 24, 0.85));
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.4s;
+    span {
+      color: $holy;
+      font-family: "Cinzel", serif;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      background: rgba(5, 10, 24, 0.6);
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(212, 184, 122, 0.2);
+    }
+  }
+
+  &:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+    border-color: rgba(212, 184, 122, 0.25);
+    .overlay {
+      opacity: 1;
+    }
+  }
+
+  .like-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    transition: transform 0.2s;
+    &:hover {
+      transform: scale(1.2);
+    }
+    .heart {
+      width: 24px;
+      height: 24px;
+      background: url("/icons/heart-red-outline.svg") no-repeat center;
+      background-size: contain;
+      transition: all 0.3s;
+      filter: drop-shadow(0 0 6px rgba(160, 212, 255, 0.5));
+    }
+    .liked {
+      background: url("/icons/heart-red-filled.svg") no-repeat center;
+      background-size: contain;
+      animation: pop 0.4s ease;
+      &::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 40px;
+        height: 40px;
+        background: rgba(160, 212, 255, 0.15);
+        border-radius: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        animation: pulse 1.2s ease-out infinite;
+        pointer-events: none;
+      }
+    }
+    .like-count {
+      font-size: 0.95rem;
+      color: $ice;
+      text-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+      font-weight: bold;
+    }
+  }
+}
+
+.sentinel {
+  height: 20px;
+  width: 100%;
+  margin: 10px 0;
+}
+.loading,
+.finished {
+  text-align: center;
+  padding: 20px;
+  color: $text-dim;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  .ice-symbol {
+    color: $ice;
+    margin: 0 8px;
+  }
+}
+.finished {
+  color: $gold;
+  font-style: italic;
+}
+
+/* ========== Lightbox ========== */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 24, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  img {
+    max-width: 85%;
+    max-height: 85%;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  }
+  .close,
+  .prev,
+  .next {
+    position: absolute;
+    color: $text;
+    font-size: 2.5rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: color 0.3s;
+    &:hover {
+      color: $ice;
+    }
+  }
+  .close {
+    top: 20px;
+    right: 20px;
+  }
+  .prev {
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .next {
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+
+/* ========== 上传弹窗 ========== */
+.upload-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 10, 24, 0.9),
+    rgba(8, 14, 28, 0.86)
+  );
+  backdrop-filter: blur(10px);
+}
+.upload-modal {
+  width: 720px;
+  max-width: calc(100% - 40px);
+  padding: 36px;
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 10, 20, 0.94),
+    rgba(8, 14, 28, 0.92)
+  );
+  border: 1px solid $card-border;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(160, 212, 255, 0.04);
+  color: $text;
+  font-family: "Noto Serif SC", "Cinzel", serif;
+
+  h3 {
+    margin: 0 0 16px;
+    font-size: 1.4rem;
+    text-align: center;
+    color: $gold-light;
+    letter-spacing: 2px;
+  }
+  .stats {
+    margin: 16px 0;
+    text-align: center;
+    strong {
+      color: $ice;
+    }
+  }
+  .tip-container {
+    padding: 14px 18px;
+    background: rgba(6, 10, 20, 0.5);
+    border-left: 3px solid rgba(160, 212, 255, 0.15);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    .tips-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      li {
+        padding: 6px 0 6px 28px;
+        font-size: 0.9rem;
+        color: $text-dim;
+        position: relative;
+        &::before {
+          content: "⚜️";
+          position: absolute;
+          left: 0;
+          top: 6px;
+          font-size: 0.7rem;
+          opacity: 0.5;
+        }
+      }
+    }
+  }
+  .tip {
+    text-align: right;
+    font-size: 0.85rem;
+    color: $text-dim;
+  }
+  label {
+    display: block;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+    color: $text-dim;
+    input[type="text"],
+    input[type="file"] {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid $card-border;
+      background: rgba(6, 10, 20, 0.6);
+      color: $text;
+ 
+      outline: none;
+      transition: border-color 0.2s;
+      &:focus {
+        border-color: $ice;
+        box-shadow: 0 0 8px rgba(160, 212, 255, 0.1);
+      }
+    }
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    button {
+      padding: 10px 24px;
+      border-radius: 24px;
+      border: none;
+      cursor: pointer;
+      font-family: "Cinzel", serif;
+      font-weight: 700;
+      letter-spacing: 1px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      &:not(.cancel) {
+        background: linear-gradient(135deg, $ice, $gold);
+        color: $abyss;
+        box-shadow: 0 6px 20px rgba(160, 212, 255, 0.2);
+        &:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 28px rgba(160, 212, 255, 0.3);
+        }
+        &:disabled {
+          opacity: 0.4;
+          animation: cursorAnimation_disabled 1s infinite step-start;
+        }
+      }
+      &.cancel {
+        background: transparent;
+        border: 1px solid $card-border;
+        color: $text-dim;
+        &:hover {
+          background: rgba(160, 212, 255, 0.04);
+        }
+      }
+    }
+  }
+}
+
+/* ========== 排行榜 ========== */
+.ranking-panel {
+  width: 210px;
+  padding: 14px;
+  position: fixed;
+  top: 80px;
+  right: 16px;
+  z-index: 1200;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 10, 20, 0.92),
+    rgba(8, 14, 28, 0.9)
+  );
+  border-radius: 16px;
+  border: 1px solid $card-border;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(160, 212, 255, 0.03);
+  color: $text;
+  font-family: "Noto Serif SC", "Cinzel", serif;
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding-bottom: 6px;
+    .ranking-title {
+      margin: 0;
+      font-size: 1rem;
+      color: $gold-light;
+      letter-spacing: 1px;
+    }
+    .panel-total {
+      font-size: 0.75rem;
+      color: $text-dim;
+    }
+    .toggle-icon {
+      font-size: 0.9rem;
+      color: $ice;
+    }
+  }
+  .ranking-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0;
+    max-height: 50vh;
+    overflow-y: auto;
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(160, 212, 255, 0.15);
+      border-radius: 4px;
+    }
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      border-radius: 10px;
+      background: rgba(6, 10, 20, 0.5);
+      transition: transform 0.2s, box-shadow 0.2s;
+      &:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      }
+      .rank {
+        width: 28px;
+        text-align: center;
+        font-weight: 800;
+        font-size: 0.9rem;
+        color: $ice;
+      }
+      .name {
+        flex: 1;
+        padding: 0 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .count {
+        font-size: 0.8rem;
+        color: $ice;
+        font-weight: 700;
+      }
+
+      &.rank-1 {
+        background: linear-gradient(
+          135deg,
+          rgba(160, 212, 255, 0.3),
+          rgba(212, 184, 122, 0.3)
+        );
+        .rank,
+        .name,
+        .count {
+          color: $gold-light;
+        }
+      }
+      &.rank-2 {
+        background: linear-gradient(
+          135deg,
+          rgba(160, 212, 255, 0.18),
+          rgba(212, 184, 122, 0.15)
+        );
+      }
+      &.rank-3 {
+        background: linear-gradient(
+          135deg,
+          rgba(160, 212, 255, 0.1),
+          rgba(212, 184, 122, 0.08)
+        );
+      }
+    }
+  }
+}
+
+/* ========== 浮动小人 ========== */
+.floating-chibis {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+.chibi-img {
+  position: absolute;
+  width: 80px;
+  user-select: none;
+  transform-origin: center center;
+  pointer-events: auto;
+}
+
+/* ========== 动画 ========== */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -605,940 +1206,106 @@ $halo: rgba($accent, 0.06);
     transform: translateY(0);
   }
 }
-
-/* 固定浮动小 chibi 层（保留） */
-.floating-chibis {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.chibi-img {
-  position: absolute;
-  width: 80px;
-  user-select: none;
-  transform-origin: center center;
-  pointer-events: auto;
-  z-index: 10;
-}
-
-/* 画廊容器整体背景改为海感光斑 + 深海底 */
-.gallery-container {
-  background: radial-gradient(circle at center, #071018 0%, $bg 100%);
-  color: $text;
-  min-height: 100vh;
-  padding-bottom: 60px;
-  padding-top: 20px;
-  .section {
-    padding: 80px 20px;
-    max-width: 1200px;
-    margin: 0 auto;
- 
-    .sort-controls {
-      margin: 16px 0;
-
-      .sort-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 28px 10px 56px;
-        font-size: 1rem;
-        line-height: 1;
-        font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", Arial,
-          sans-serif;
-        cursor: pointer;
-        border-radius: 28px;
-        position: relative;
-        overflow: hidden;
-        border: 1px solid rgba($purple, 0.03);
-
-        /* 暗紫底 + 紫→海蓝徽记渐变（替代原血红） */
-        background: linear-gradient(
-          90deg,
-          rgba(10, 8, 14, 0.82) 0%,
-          rgba(8, 10, 16, 0.92) 50%,
-          rgba(6, 6, 10, 0.96) 100%
-        );
-        color: $text;
-        box-shadow: 0 10px 28px rgba(4, 6, 8, 0.56),
-          inset 0 1px 0 rgba($purple, 0.01);
-        transition: transform 200ms cubic-bezier(0.2, 0.9, 0.25, 1),
-          box-shadow 200ms ease, background 260ms ease, color 160ms ease,
-          filter 200ms ease;
-        -webkit-tap-highlight-color: transparent;
-        will-change: transform, box-shadow, filter;
-
-        /* 左侧徽记 —— 暗紫到海蓝渐变（替换原血红徽记） */
-        &::after {
-          content: "";
-          position: absolute;
-          left: 18px;
-          top: 50%;
-          transform: translateY(-50%) rotate(-12deg);
-          width: 18px;
-          height: 22px;
-          border-radius: 4px;
-          background: linear-gradient(180deg, $purple 0%, $accent 70%);
-          box-shadow: 0 6px 18px rgba(24, 12, 48, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.02);
-          clip-path: polygon(
-            50% 0,
-            78% 25%,
-            100% 45%,
-            50% 100%,
-            0% 45%,
-            22% 25%
-          );
-          pointer-events: none;
-          z-index: 3;
-          transition: transform 220ms ease, opacity 220ms ease,
-            box-shadow 220ms ease;
-        }
-
-        /* 左侧微光环（海蓝微光） */
-        &::before {
-          content: "";
-          position: absolute;
-          left: 6px;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: radial-gradient(
-            circle at 35% 35%,
-            rgba($accent, 0.06),
-            transparent 45%
-          );
-          filter: blur(6px);
-          pointer-events: none;
-          opacity: 0.9;
-          z-index: 1;
-        }
-
-        /* hover：徽记放大 + 暗底微变（海蓝光晕） */
-        &:hover {
-          transform: translateY(-5px) scale(1.02);
-          box-shadow: 0 22px 66px rgba(4, 6, 8, 0.66),
-            0 0 44px rgba($accent, 0.12);
-          filter: saturate(1.04) brightness(1.02);
-          color: $accent;
-          background: linear-gradient(
-            90deg,
-            rgba(10, 8, 14, 0.88) 0%,
-            rgba(8, 10, 16, 0.94) 50%,
-            rgba(6, 6, 10, 0.98) 100%
-          );
-        }
-
-        &:hover::after {
-          transform: translateY(-56%) rotate(-6deg) scale(1.12);
-          box-shadow: 0 10px 30px rgba($accent, 0.14),
-            inset 0 2px 6px rgba(255, 255, 255, 0.06);
-          opacity: 1;
-        }
-
-        &:active {
-          transform: translateY(-2px) scale(0.995);
-          box-shadow: 0 10px 28px rgba(4, 6, 8, 0.5),
-            0 0 20px rgba($accent, 0.06);
-        }
-
-        &:focus-visible {
-          outline: none;
-          box-shadow: 0 22px 66px rgba(4, 6, 8, 0.66),
-            0 0 0 6px rgba($accent, 0.06);
-        }
-      }
-    }
-
-    .gallery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 24px;
-
-      .card {
-        perspective: 1000px;
-        opacity: 0;
-        transform: translateY(20px);
-
-        &.visible {
-          animation: fadeInUp 0.6s ease forwards;
-        }
-
-        &.loaded {
-          .card-inner img {
-            filter: none;
-            opacity: 1;
-          }
-        }
-
-        .card-inner {
-          position: relative;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
-          transform-style: preserve-3d;
-          transition: transform 0.5s ease, box-shadow 0.5s ease;
-
-          &:hover {
-            transform: rotateY(6deg) rotateX(3deg) scale(1.05);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.9);
-          }
-
-          img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            filter: blur(20px) grayscale(40%);
-            opacity: 0.8;
-            transition: filter 0.6s ease, opacity 0.6s ease;
-          }
-
-          .overlay {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            padding: 12px 0;
-            background: linear-gradient(transparent, rgba(2, 6, 10, 0.8));
-            text-align: center;
-            opacity: 0;
-            transition: opacity 0.4s;
-
-            span {
-              color: $text;
-              font-family: "Cinzel Decorative", serif;
-              font-size: 1.1rem;
-              letter-spacing: 1px;
-              background: rgba(0, 0, 0, 0.6);
-              padding: 4px 12px;
-              border-radius: 20px;
-            }
-          }
-
-          &:hover .overlay {
-            opacity: 1;
-          }
-
-          .like-btn {
-            position: absolute;
-            bottom: 12px;
-            right: 12px;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            z-index: 2;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px;
-            border-radius: 50%;
-            transition: transform 0.2s ease;
-
-            &:hover {
-              transform: scale(1.3);
-            }
-
-            .heart {
-              width: 24px;
-              height: 24px;
-              background: url("/icons/heart-red-outline.svg") no-repeat center;
-              background-size: contain;
-              transition: all 0.3s ease;
-              filter: drop-shadow(0 0 6px rgba($accent, 0.6));
-            }
-
-            .liked {
-              background: url("/icons/heart-red-filled.svg") no-repeat center;
-              background-size: contain;
-              animation: pop 0.4s ease;
-              position: relative;
-
-              &::after {
-                content: "";
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                width: 40px;
-                height: 40px;
-                background: rgba($accent, 0.18);
-                border-radius: 50%;
-                transform: translate(-50%, -50%) scale(0);
-                animation: pulse 1.2s ease-out infinite;
-                pointer-events: none;
-              }
-            }
-
-            .like-count {
-              font-size: 1rem;
-              color: red;
-              text-shadow: 0 0 6px rgba(0, 0, 0, 0.48);
-              font-weight: bold;
-            }
-          }
-
-          @keyframes pulse {
-            0% {
-              transform: translate(-50%, -50%) scale(0.6);
-              opacity: 0.6;
-            }
-            50% {
-              transform: translate(-50%, -50%) scale(1.2);
-              opacity: 0;
-            }
-            100% {
-              transform: translate(-50%, -50%) scale(0.6);
-              opacity: 0;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  .lightbox {
-    position: fixed;
-    inset: 0;
-    background: rgba(2, 6, 10, 0.96);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-
-    img {
-      max-width: 85%;
-      max-height: 85%;
-      border-radius: 8px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
-      animation: fadeInUp 0.4s ease;
-    }
-
-    .close,
-    .prev,
-    .next {
-      position: absolute;
-      color: $text;
-      font-size: 2.5rem;
-      cursor: pointer;
-      user-select: none;
-      padding: 8px;
-      border-radius: 50%;
-      transition: background 0.3s;
-
-      &:hover {
-        color: $accent;
-      }
-    }
-
-    .close {
-      top: 20px;
-      right: 20px;
-    }
-    .prev {
-      left: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-    }
-    .next {
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-    }
-  }
-
-  .upload-btn {
-    position: fixed;
-    bottom: 64px;
-    left: 24px;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 18px;
-    font-size: 1rem;
-    z-index: 10;
-    cursor: pointer;
-    user-select: none;
-
-    color: #071018; // 深色文本以配合亮色按钮
-    background: linear-gradient(90deg, $accent 0%, $purple 60%);
-    border-radius: 28px;
-    backdrop-filter: blur(6px) saturate(120%);
-    box-shadow: 0 14px 36px rgba(4, 4, 8, 0.54), 0 0 28px rgba($accent, 0.12);
-    overflow: visible;
-    transition: transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1),
-      box-shadow 220ms ease, background 260ms ease, filter 220ms ease;
-
-    &:hover {
-      transform: translateY(-6px) scale(1.02);
-      box-shadow: 0 26px 68px rgba(4, 2, 6, 0.62), 0 0 56px rgba($accent, 0.18);
-      filter: brightness(1.04) saturate(1.05);
-      background: linear-gradient(90deg, $accent, $purple);
-    }
-
-    &:active {
-      transform: translateY(-2px) scale(0.99);
-      box-shadow: 0 16px 44px rgba(4, 2, 6, 0.48), 0 0 36px rgba($accent, 0.1);
-    }
-  }
-
-  /* upload modal / overlay：改为海蓝 + 暗紫舞台匣 + 微毒点缀 */
-  .upload-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 2000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(
-      180deg,
-      rgba(4, 6, 10, 0.9),
-      rgba(8, 6, 12, 0.86)
-    );
-    backdrop-filter: blur(10px) saturate(0.95);
-
-    &::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background: radial-gradient(
-          800px 260px at 50% 28%,
-          rgba($accent, 0.06),
-          transparent 14%
-        ),
-        radial-gradient(
-          420px 160px at 18% 72%,
-          rgba($purple, 0.03),
-          transparent 18%
-        ),
-        linear-gradient(180deg, rgba(0, 0, 0, 0.26), transparent 40%);
-      mix-blend-mode: screen;
-    }
-  }
-
-  .upload-modal {
-    position: relative;
-    width: 720px;
-    max-width: calc(100% - 40px);
-    padding: 36px;
-    border-radius: 16px;
-    overflow: hidden;
-    z-index: 2100;
-    color: $text;
-    font-family: "Helvetica Neue", "Noto Sans SC", "PingFang SC", sans-serif;
-    -webkit-font-smoothing: antialiased;
-
-    background: linear-gradient(
-      180deg,
-      rgba(8, 10, 12, 0.94),
-      rgba(10, 8, 12, 0.92)
-    );
-    border: 1px solid rgba($purple, 0.06);
-    backdrop-filter: blur(6px) saturate(0.92);
-    box-shadow: 0 30px 90px rgba(4, 4, 8, 0.78),
-      inset 0 1px 0 rgba($accent, 0.03);
-
-    &::before {
-      content: "";
-      position: absolute;
-      inset: -2px;
-      border-radius: 18px;
-      pointer-events: none;
-      background: linear-gradient(
-        90deg,
-        rgba($accent, 0.04),
-        rgba($purple, 0.02),
-        rgba($accent, 0.03)
-      );
-      filter: blur(12px);
-      mix-blend-mode: screen;
-      opacity: 0.95;
-    }
-
-    h3 {
-      margin: 0 0 16px 0;
-      font-size: 1.5rem;
-      color: $text;
-      font-weight: 900;
-      text-align: center;
-      letter-spacing: 0.6px;
-      text-shadow: 0 6px 20px rgba(6, 4, 8, 0.48);
-    }
-
-    .stats {
-      margin: 18px 0;
-      font-size: 1rem;
-      text-align: center;
-      color: rgba($text, 0.96);
-
-      strong {
-        color: $accent;
-      }
-    }
-
-    .tip-container {
-      margin-top: 18px;
-      padding: 14px 18px;
-      background: linear-gradient(
-        180deg,
-        rgba(6, 8, 10, 0.64),
-        rgba(6, 6, 8, 0.56)
-      );
-      border-left: 4px solid rgba($accent, 0.12);
-      border-radius: 10px;
-      backdrop-filter: blur(4px);
-      color: rgba($text, 0.94);
-
-      .tips-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-
-        li {
-          position: relative;
-          padding-left: 34px;
-          margin-bottom: 10px;
-          font-size: 0.95rem;
-          color: rgba($text, 0.94);
-
-          &::before {
-            content: "";
-            position: absolute;
-            left: 8px;
-            top: 0px;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: linear-gradient(90deg, $purple 0%, $accent 100%);
-            box-shadow: 0 6px 18px rgba(10, 6, 18, 0.06);
-          }
-
-          &:last-child {
-            margin-bottom: 0;
-          }
-        }
-      }
-    }
-
-    .tip {
-      margin-top: 10px;
-      text-align: right;
-      font-size: 0.9rem;
-      color: rgba($text, 0.86);
-    }
-
-    label {
-      display: block;
-      margin-bottom: 18px;
-      font-size: 0.95rem;
-      color: rgba($text, 0.96);
-
-      input[type="text"],
-      input[type="file"],
-      textarea {
-        width: 100%;
-        margin-top: 8px;
-        padding: 12px 14px;
-        border-radius: 10px;
-        border: 1px solid rgba($purple, 0.04);
-        background: linear-gradient(
-          180deg,
-          rgba(6, 8, 10, 0.6),
-          rgba(6, 6, 8, 0.64)
-        );
-        color: rgba($text, 0.96);
-        font-size: 0.95rem;
-        outline: none;
-        transition: border-color 0.18s ease, box-shadow 0.18s ease,
-          transform 0.12s ease;
-        box-shadow: inset 0 -4px 10px rgba(0, 0, 0, 0.46);
-      }
-
-      input[type="text"]::placeholder,
-      textarea::placeholder {
-        color: rgba(180, 190, 200, 0.3);
-      }
-
-      input[type="text"]:focus,
-      input[type="file"]:focus,
-      textarea:focus {
-        border-color: rgba($accent, 0.36);
-        box-shadow: 0 12px 36px rgba($accent, 0.06),
-          0 2px 8px rgba($purple, 0.04);
-        transform: translateY(-1px);
-      }
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 14px;
-      margin-top: 28px;
-      flex-wrap: wrap;
-      align-items: center;
-
-      button {
-        padding: 12px 24px;
-        border: none;
-        border-radius: 24px;
-        cursor: pointer;
-        font-weight: 800;
-        font-size: 0.95rem;
-        transition: background 0.22s ease, box-shadow 0.22s ease,
-          transform 0.12s ease;
-        min-width: 96px;
-        color: #071018;
-      }
-
-      /* 主按钮：海蓝 → 暗紫 渐变 */
-      button:not(.cancel) {
-        background: linear-gradient(
-          135deg,
-          $accent 0%,
-          $purple 60%,
-          rgba($purple, 6%) 100%
-        );
-        box-shadow: 0 12px 36px rgba(80, 140, 160, 0.08),
-          0 4px 18px rgba(30, 20, 40, 0.04);
-        color: #071018;
-      }
-
-      button:not(.cancel):hover:not(:disabled) {
-        transform: translateY(-4px);
-        box-shadow: 0 22px 66px rgba(6, 10, 14, 0.32),
-          0 8px 28px rgba($accent, 0.12);
-      }
-
-      button:not(.cancel):disabled {
-        background: linear-gradient(
-          135deg,
-          rgba(6, 8, 10, 0.48),
-          rgba(6, 6, 8, 0.44)
-        );
-        opacity: 0.6;
-        cursor: not-allowed;
-        box-shadow: none;
-        color: rgba(180, 170, 180, 0.6);
-      }
-
-      button.cancel {
-        background: transparent;
-        border: 2px solid rgba($purple, 0.06);
-        color: rgba(238, 228, 233, 0.9);
-        min-width: 86px;
-        box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.22);
-      }
-
-      button.cancel:hover {
-        background: rgba($purple, 0.02);
-      }
-    }
-  }
-
-  /* 右侧排行面板：卡提希娅风格（清冷冰蓝 + 圣光金 + 深海暗蓝），已写实颜色（无变量）*/
-  .ranking-panel {
-    width: 220px;
-    padding: 16px;
-    position: fixed;
-    top: 64px;
-    right: 12px;
-    z-index: 1200;
-    color: #eaf7ff; /* 文字主色（冷白） */
-    font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", Arial,
-      sans-serif;
-
-    background: linear-gradient(
-      180deg,
-      rgba(6, 8, 12, 0.94),
-      rgba(7, 10, 18, 0.92)
-    );
-    border-radius: 18px;
-    border: 1px solid rgba(74, 62, 123, 0.06); /* 深蓝紫的细边 */
-    -webkit-backdrop-filter: blur(8px) saturate(0.92);
-    backdrop-filter: blur(8px) saturate(0.92);
-    box-shadow: 0 18px 56px rgba(3, 4, 8, 0.78),
-      inset 0 1px 0 rgba(116, 199, 255, 0.03);
-
-    &.collapsed {
-      height: auto;
-      padding-bottom: 8px;
-    }
-
-    .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      user-select: none;
-      padding-bottom: 6px;
-
-      .ranking-title {
-        margin: 0;
-        font-size: 1.05rem;
-        font-weight: 900;
-        color: rgba(234, 247, 255, 0.92); /* 稍微柔和的冷白 */
-        font-family: "Zhi Mang Xing", "STKaiti", serif;
-        letter-spacing: 0.6px;
-        text-shadow: 0 6px 18px rgba(6, 4, 8, 0.48);
-      }
-
-      .toggle-icon {
-        font-size: 1rem;
-        color: #74c7ff; /* 冰蓝高光 */
-        background: linear-gradient(
-          180deg,
-          rgba(12, 10, 14, 0.48),
-          rgba(8, 6, 10, 0.36)
-        );
-        padding: 6px 8px;
-        border-radius: 9px;
-        border: 1px solid rgba(74, 62, 123, 0.04);
-        box-shadow: 0 6px 14px rgba(4, 4, 8, 0.48),
-          inset 0 1px 0 rgba(116, 199, 255, 0.02);
-        transition: transform 220ms, box-shadow 220ms;
-      }
-
-      &:hover .toggle-icon,
-      &:focus-within .toggle-icon {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 30px rgba(116, 199, 255, 0.08),
-          inset 0 1px 0 rgba(74, 62, 123, 0.02);
-      }
-    }
-
-    .ranking-list {
-      list-style: none;
-      padding: 0;
-      margin: 12px 0 0;
-      overflow-y: auto;
-      max-height: 55vh;
-
-      &::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      &::-webkit-scrollbar-thumb {
-        background: linear-gradient(
-          180deg,
-          rgba(116, 199, 255, 0.16),
-          rgba(74, 62, 123, 0.12)
-        );
-        border-radius: 8px;
-        border: 1px solid rgba(50, 30, 60, 0.04);
-      }
-      &::-webkit-scrollbar-track {
-        background: transparent;
-      }
-    }
-
-    .ranking-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 10px;
-      margin-bottom: 8px;
-      border-radius: 12px;
-      cursor: default;
-      background: linear-gradient(
-        180deg,
-        rgba(10, 10, 12, 0.56),
-        rgba(6, 6, 8, 0.54)
-      );
-      transition: transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1),
-        box-shadow 260ms, background 260ms, color 200ms;
-      position: relative;
-
-      &:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 18px 48px rgba(6, 4, 8, 0.56),
-          0 0 28px rgba(116, 199, 255, 0.04);
-        background: linear-gradient(
-          90deg,
-          rgba(12, 10, 14, 0.66),
-          rgba(8, 6, 10, 0.62)
-        );
-      }
-
-      &:focus-within,
-      &:focus {
-        outline: none;
-        box-shadow: 0 18px 48px rgba(116, 199, 255, 0.06),
-          0 0 0 4px rgba(74, 62, 123, 0.03);
-        transform: translateY(-4px);
-      }
-
-      .rank {
-        width: 36px;
-        text-align: center;
-        font-weight: 900;
-        font-size: 1rem;
-        color: rgba(234, 247, 255, 0.88);
-        flex-shrink: 0;
-      }
-      .name {
-        flex: 1;
-        padding: 0 8px;
-        font-size: 0.95rem;
-        color: #e8f8ff; /* 主文字色略带冰蓝感 */
-        font-weight: 700;
-        white-space: normal;
-        word-break: break-word;
-        line-height: 1.25;
-      }
-      .count {
-        font-size: 0.9rem;
-        color: #74c7ff; /* 数值用冰蓝强调 */
-        font-weight: 800;
-        min-width: 36px;
-        text-align: right;
-        text-shadow: 0 2px 6px rgba(6, 4, 8, 0.04);
-        flex-shrink: 0;
-      }
-
-      /* 冠军样式：冰蓝 -> 钢蓝 -> 深海蓝，辅以微金光晕（无紫色） */
-      &.rank-1 {
-        background: linear-gradient(
-          135deg,
-          #afc3eb 0%,
-          rgba(129, 195, 239, 0.9) 20%,
-          #ffd78a 100%
-        );
-        color: #041018; /* 深色文字，保持可读 */
-        box-shadow: 0 18px 56px rgba(116, 199, 255, 0.16),
-          /* 冰蓝光晕 */ 0 0 30px rgba(255, 216, 134, 0.06); /* 轻微金色晕染（圣光感） */
-
-        .rank,
-        .name,
-        .count {
-          color: #041018;
-        }
-      }
-
-      /* 亚军样式：深海蓝为主，带冰蓝高光（细微透明高亮） */
-      &.rank-2 {
-        background: linear-gradient(
-          135deg,
-          #7593cf 0%,
-          rgba(116, 199, 255, 0.9) 40%,
-          #ffd78a 100%
-        );
-        color: #eaf7ff; /* 近白冰冷文字 */
-        box-shadow: 0 14px 48px rgba(35, 56, 84, 0.08);
-
-        .rank,
-        .name,
-        .count {
-          color: #eaf7ff;
-        }
-      }
-
-      /* 季军样式：更沉稳的深海基调 + 极轻微金色提示（不显紫） */
-      &.rank-3 {
-        background: linear-gradient(
-          135deg,
-          #4c74c5 0%,
-          rgba(65, 159, 222, 0.9) 60%,
-          /* 冰蓝薄高光（透明） */ #ffd78a 100%
-        );
-        color: #eaf7ff;
-        box-shadow: 0 10px 36px rgba(28, 36, 50, 0.08);
-
-        .rank {
-          color: rgba(255, 235, 200, 0.95); /* 近金/暖色点缀（很轻） */
-        }
-        .count {
-          color: rgba(255, 235, 200, 0.95);
-        }
-      }
-    }
-
-    .fade-enter-active,
-    .fade-leave-active {
-      transition: opacity 0.28s ease;
-    }
-    .fade-enter-from,
-    .fade-leave-to {
-      opacity: 0;
-    }
-  }
-}
-
-/* 动画关键帧：水感/音符/气泡等（低频，仅 transform/opacity） */
-@keyframes staff-drift {
+@keyframes gridShift {
   0% {
-    transform: translateY(-3%);
-    opacity: 0.92;
-  }
-  50% {
-    transform: translateY(5%);
-    opacity: 0.98;
+    background-position: 0 0, 0 0;
   }
   100% {
-    transform: translateY(-3%);
-    opacity: 0.92;
+    background-position: 0 42px, 0 0;
   }
 }
-
-@keyframes note-float {
-  0% {
-    transform: translateY(0) rotate(-6deg) scale(0.95);
-    opacity: 0.86;
+@keyframes slowSpin {
+  from {
+    transform: rotate(0deg);
   }
-  50% {
-    transform: translateY(-12px) rotate(3deg) scale(1);
-    opacity: 1;
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) scale(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.8;
   }
   100% {
-    transform: translateY(0) rotate(-6deg) scale(0.95);
-    opacity: 0.86;
+    transform: translateY(-60px) scale(1.3);
+    opacity: 0;
   }
 }
-
-@keyframes bubble-rise {
+@keyframes sweep {
   0% {
-    transform: translateY(6px) translateX(0);
-    opacity: 0.06;
-  }
-  50% {
-    transform: translateY(-6px) translateX(6px);
-    opacity: 0.14;
+    transform: translateX(-100%);
   }
   100% {
-    transform: translateY(-22px) translateX(0);
-    opacity: 0.02;
+    transform: translateX(100%);
   }
 }
-
-@keyframes slow-drift {
+@keyframes pop {
   0% {
-    transform: translateX(0) translateY(0);
-    opacity: 0.95;
+    transform: scale(1);
   }
   50% {
-    transform: translateX(-10px) translateY(-6px);
-    opacity: 1;
+    transform: scale(1.3);
   }
   100% {
-    transform: translateX(0) translateY(0);
-    opacity: 0.95;
+    transform: scale(1);
   }
 }
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0;
+  }
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 
-/* 响应式（保留你原有行为） */
+/* ========== 响应式 ========== */
 @media (max-width: 980px) {
-  .gallery-container .section {
-    padding: 40px 14px;
+  .section {
+    padding: 60px 14px 30px;
   }
-  .gallery-container .gallery-grid {
+  .gallery-grid {
     gap: 16px;
   }
   .upload-modal {
     width: calc(100% - 24px);
-    padding: 18px;
+    padding: 20px;
   }
- 
+  .ranking-panel {
+    width: 180px;
+    top: 60px;
+    right: 8px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ranking-panel {
+    display: none;
+  }
+  .upload-btn {
+    bottom: 40px;
+    left: 16px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
 }
 </style>
